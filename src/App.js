@@ -13,6 +13,7 @@ function App() {
   const [currentTask, setCurrentTask] = useState({ id: null, text: "" });
   const [selectedDay, setSelectedDay] = useState("Sunday");
   const [weekOffset, setWeekOffset] = useState(0); // Track the current week offset
+  const [repeatWeekly, setRepeatWeekly] = useState(false); // State to manage repeat task
   const [showConfetti, setShowConfetti] = useState(false); // State to manage confetti
   const inputRef = useRef(null);
 
@@ -58,15 +59,33 @@ function App() {
   const handleSubmit = (e) => {
     e.preventDefault();
     if (input.trim() === "") return; // Prevent adding empty tasks
-    const newTask = {
-      id: Date.now(),
-      text: input,
-      completed: false,
-      day: selectedDay, // Store the selected day
-      weekStartDate: getWeekStartDate(weekOffset), // Add week start date
-    };
-    setTasks([...tasks, newTask]);
+
+    const weekStartDate = getWeekStartDate(weekOffset);
+
+    if (repeatWeekly) {
+      // Create a task for each day of the active week
+      const newTasks = daysOfWeek.map((day, index) => ({
+        id: Date.now() + index, // Unique ID for each task
+        text: input,
+        completed: false,
+        day: day,
+        weekStartDate: weekStartDate,
+      }));
+      setTasks([...tasks, ...newTasks]);
+    } else {
+      // Create a single task for the selected day
+      const newTask = {
+        id: Date.now(),
+        text: input,
+        completed: false,
+        day: selectedDay, // Store the selected day
+        weekStartDate: weekStartDate, // Add week start date
+      };
+      setTasks([...tasks, newTask]);
+    }
+
     setInput("");
+    setRepeatWeekly(false); // Reset the repeat weekly checkbox
   };
 
   const handleChange = (e) => {
@@ -130,15 +149,6 @@ function App() {
       return task;
     });
     setTasks(updatedTasks);
-  };
-
-  const calculateDailyProgress = () => {
-    const today = new Date().toLocaleDateString("en-US", { weekday: "long" });
-    const dailyTasks = tasks.filter((task) => task.day === today);
-    const completedTasks = dailyTasks.filter((task) => task.completed).length;
-    return dailyTasks.length === 0
-      ? 0
-      : (completedTasks / dailyTasks.length) * 100;
   };
 
   const calculateWeeklyProgress = () => {
@@ -235,16 +245,19 @@ function App() {
           placeholder="Enter your task"
           ref={inputRef}
         />
+        <div>
+          <label>
+            <input
+              type="checkbox"
+              checked={repeatWeekly}
+              onChange={(e) => setRepeatWeekly(e.target.checked)}
+            />
+            Repeat daily
+          </label>
+        </div>
         <button type="submit">Add Task</button>
       </form>
       <div className="progress-bars">
-        <div className="progress-bar-container">
-          <label>Daily Progress</label>
-          <div
-            className="progress-bar"
-            style={{ width: `${calculateDailyProgress()}%` }}
-          ></div>
-        </div>
         <div className="progress-bar-container">
           <label>Weekly Progress</label>
           <div
@@ -276,8 +289,6 @@ function App() {
                       className={`task ${task.completed ? "completed" : ""}`}
                       draggable
                       onDragStart={(e) => handleDragStart(e, task.id)}
-                      onDragOver={(e) => handleDragOver(e)}
-                      onDrop={(e) => handleDrop(e, day)}
                     >
                       <input
                         type="checkbox"
