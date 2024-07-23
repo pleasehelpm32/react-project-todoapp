@@ -1,7 +1,7 @@
 /* General styling for the body */
 body {
   font-family: Arial, sans-serif;
-  background-color: #f4f4f4;
+  background-color: lightblue;
   margin: 0;
   padding: 0;
   display: flex;
@@ -17,7 +17,8 @@ body {
   border-radius: 8px;
   box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
   width: 100%;
-  max-width: 400px;
+  max-width: 800px;
+  border: 1px solid black; /* Added black border */
 }
 
 /* Styling for the header */
@@ -31,9 +32,16 @@ form {
   display: flex;
   justify-content: space-between;
   margin-bottom: 20px;
+  flex-wrap: wrap;
 }
 
-form input[type="text"] {
+form select,
+form input[type="text"],
+form button {
+  margin: 5px 0;
+}
+
+form select {
   flex: 1;
   padding: 10px;
   border: 1px solid #ccc;
@@ -41,8 +49,17 @@ form input[type="text"] {
   margin-right: 10px;
 }
 
+form input[type="text"] {
+  flex: 2;
+  padding: 10px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  margin-right: 10px;
+}
+
 form button {
-  padding: 10px 15px;
+  flex: 1;
+  padding: 10px;
   background-color: #28a745;
   border: none;
   color: white;
@@ -53,6 +70,32 @@ form button {
 
 form button:hover {
   background-color: #218838;
+}
+
+/* Progress bars styling */
+.progress-bars {
+  margin-bottom: 20px;
+}
+
+.progress-bar-container {
+  width: 100%;
+  background-color: #ccc;
+  border-radius: 4px;
+  margin-bottom: 10px;
+  padding: 5px;
+}
+
+.progress-bar-container label {
+  display: block;
+  margin-bottom: 5px;
+  font-weight: bold;
+}
+
+.progress-bar {
+  height: 20px;
+  background-color: #28a745;
+  border-radius: 4px;
+  transition: width 0.3s;
 }
 
 /* Styling for the tasks list */
@@ -108,4 +151,20 @@ form button:hover {
 
 .task button.delete:hover {
   background-color: #c82333;
+}
+
+/* Weekly view styling */
+.weekly-tasks {
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.day-column {
+  flex: 1;
+  min-width: 200px;
+  margin: 10px;
+}
+
+.day-column h2 {
+  text-align: center;
 }
