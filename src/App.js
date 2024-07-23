@@ -1,5 +1,10 @@
 import "./index.css";
 import React, { useState, useEffect, useRef } from "react";
+import { FaArrowLeft, FaArrowRight } from "react-icons/fa"; // Import arrow icons
+import Confetti from "react-confetti"; // Import confetti
+import { CSSTransition, TransitionGroup } from "react-transition-group"; // Import transition components
+
+const APP_VERSION = "1.0.1"; // Update this version whenever you make significant changes
 
 function App() {
   const [tasks, setTasks] = useState([]);
@@ -7,6 +12,8 @@ function App() {
   const [isEditing, setIsEditing] = useState(false);
   const [currentTask, setCurrentTask] = useState({ id: null, text: "" });
   const [selectedDay, setSelectedDay] = useState("Sunday");
+  const [weekOffset, setWeekOffset] = useState(0); // Track the current week offset
+  const [showConfetti, setShowConfetti] = useState(false); // State to manage confetti
   const inputRef = useRef(null);
 
   const daysOfWeek = [
@@ -22,10 +29,24 @@ function App() {
   useEffect(() => {
     inputRef.current.focus();
 
+    const storedVersion = localStorage.getItem("app_version");
+
+    if (storedVersion !== APP_VERSION) {
+      localStorage.clear(); // Clear local storage if versions differ
+      localStorage.setItem("app_version", APP_VERSION); // Set the new version in local storage
+    }
+
     // Load tasks from localStorage
     const savedTasks = JSON.parse(localStorage.getItem("tasks"));
     if (savedTasks) {
       setTasks(savedTasks);
+    }
+
+    // Ensure the current week is shown by default
+    const now = new Date();
+    if (now.getDay() === 0) {
+      // If today is Sunday, reset weekOffset to 0
+      setWeekOffset(0);
     }
   }, []);
 
@@ -42,6 +63,7 @@ function App() {
       text: input,
       completed: false,
       day: selectedDay, // Store the selected day
+      weekStartDate: getWeekStartDate(weekOffset), // Add week start date
     };
     setTasks([...tasks, newTask]);
     setInput("");
@@ -53,9 +75,16 @@ function App() {
 
   const toggleTaskCompletion = (id) => {
     setTasks(
-      tasks.map((task) =>
-        task.id === id ? { ...task, completed: !task.completed } : task
-      )
+      tasks.map((task) => {
+        if (task.id === id) {
+          if (!task.completed) {
+            setShowConfetti(true);
+            setTimeout(() => setShowConfetti(false), 3000); // Show confetti for 3 seconds
+          }
+          return { ...task, completed: !task.completed };
+        }
+        return task;
+      })
     );
   };
 
@@ -117,8 +146,9 @@ function App() {
     return tasks.length === 0 ? 0 : (completedTasks / tasks.length) * 100;
   };
 
-  const getWeekDates = () => {
+  const getWeekDates = (offset) => {
     const now = new Date();
+    now.setDate(now.getDate() + offset * 7); // Adjust for week offset
     const dayOfWeek = now.getDay(); // 0 (Sun) to 6 (Sat)
     const startOfWeek = new Date(now);
     startOfWeek.setDate(now.getDate() - dayOfWeek);
@@ -132,11 +162,61 @@ function App() {
     });
   };
 
-  const weekDates = getWeekDates();
+  const weekDates = getWeekDates(weekOffset);
+
+  const getWeekStartDate = (offset) => {
+    const now = new Date();
+    now.setDate(now.getDate() + offset * 7); // Adjust for week offset
+    const dayOfWeek = now.getDay(); // 0 (Sun) to 6 (Sat)
+    const startOfWeek = new Date(now);
+    startOfWeek.setDate(now.getDate() - dayOfWeek);
+    startOfWeek.setHours(0, 0, 0, 0);
+    return startOfWeek;
+  };
+
+  const hasTasksInPreviousWeeks = () => {
+    const previousWeekStart = getWeekStartDate(weekOffset - 1);
+    return tasks.some(
+      (task) =>
+        new Date(task.weekStartDate).getTime() === previousWeekStart.getTime()
+    );
+  };
+
+  const canNavigateLeft = hasTasksInPreviousWeeks();
+  const canNavigateRight = weekOffset < 4;
+
+  const navigateWeek = (direction) => {
+    if (direction === "left" && canNavigateLeft) {
+      setWeekOffset(weekOffset - 1);
+    } else if (direction === "right" && canNavigateRight) {
+      setWeekOffset(weekOffset + 1);
+    }
+  };
+
+  const navigateToToday = () => {
+    setWeekOffset(0);
+  };
 
   return (
     <div className="app-container">
+      {showConfetti && <Confetti />}{" "}
+      {/* Conditionally render Confetti component */}
       <h1>Weekly To Do App</h1>
+      <div className="week-navigation">
+        <button
+          onClick={() => navigateWeek("left")}
+          disabled={!canNavigateLeft}
+        >
+          <FaArrowLeft />
+        </button>
+        <button onClick={() => navigateToToday()}>Today</button>
+        <button
+          onClick={() => navigateWeek("right")}
+          disabled={!canNavigateRight}
+        >
+          <FaArrowRight />
+        </button>
+      </div>
       <form onSubmit={handleSubmit}>
         <select
           value={selectedDay}
@@ -182,52 +262,58 @@ function App() {
             onDrop={(e) => handleDrop(e, day)}
           >
             <h2>{weekDates[index]}</h2>
-            <ul className="tasks">
+            <TransitionGroup component="ul" className="tasks">
               {tasks
-                .filter((task) => task.day === day)
+                .filter(
+                  (task) =>
+                    task.day === day &&
+                    new Date(task.weekStartDate).getTime() ===
+                      getWeekStartDate(weekOffset).getTime()
+                )
                 .map((task) => (
-                  <li
-                    key={task.id}
-                    className={`task ${task.completed ? "completed" : ""}`}
-                    draggable
-                    onDragStart={(e) => handleDragStart(e, task.id)}
-                    onDragOver={(e) => handleDragOver(e)}
-                    onDrop={(e) => handleDrop(e, day)}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={task.completed}
-                      onChange={() => toggleTaskCompletion(task.id)}
-                    />
-                    {isEditing && currentTask.id === task.id ? (
-                      <>
-                        <input
-                          type="text"
-                          value={currentTask.text}
-                          onChange={handleEditChange}
-                        />
-                        <button onClick={handleUpdate}>Update</button>
-                      </>
-                    ) : (
-                      <>
-                        {task.text}
-                        <button
-                          className="edit"
-                          onClick={() => handleEdit(task)}
-                        >
-                          Edit
-                        </button>
-                        <button
-                          className="delete"
-                          onClick={() => handleDelete(task.id)}
-                        >
-                          Delete
-                        </button>
-                      </>
-                    )}
-                  </li>
+                  <CSSTransition key={task.id} timeout={300} classNames="task">
+                    <li
+                      className={`task ${task.completed ? "completed" : ""}`}
+                      draggable
+                      onDragStart={(e) => handleDragStart(e, task.id)}
+                      onDragOver={(e) => handleDragOver(e)}
+                      onDrop={(e) => handleDrop(e, day)}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={task.completed}
+                        onChange={() => toggleTaskCompletion(task.id)}
+                      />
+                      {isEditing && currentTask.id === task.id ? (
+                        <>
+                          <input
+                            type="text"
+                            value={currentTask.text}
+                            onChange={handleEditChange}
+                          />
+                          <button onClick={handleUpdate}>Update</button>
+                        </>
+                      ) : (
+                        <>
+                          {task.text}
+                          <button
+                            className="edit"
+                            onClick={() => handleEdit(task)}
+                          >
+                            Edit
+                          </button>
+                          <button
+                            className="delete"
+                            onClick={() => handleDelete(task.id)}
+                          >
+                            Delete
+                          </button>
+                        </>
+                      )}
+                    </li>
+                  </CSSTransition>
                 ))}
-            </ul>
+            </TransitionGroup>
           </div>
         ))}
       </div>
